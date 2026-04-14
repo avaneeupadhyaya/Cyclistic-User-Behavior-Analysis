@@ -27,8 +27,30 @@ SELECT * FROM `cyclistic-casestudy-2026.raw_bike_data.trips_2026_01` UNION ALL
 SELECT * FROM `cyclistic-casestudy-2026.raw_bike_data.trips_2026_02`;
 
 
+
 -- =========================================================
--- 2. DATA CLEANING & FEATURE ENGINEERING
+-- 2. DATA GAP MITIGATION (THE PROXY LOGIC)
+-- =========================================================
+-- PROOF OF WORK: Since 2026 weather data was unavailable, I mapped 
+-- 2026 trip dates to 2025 weather benchmarks to maintain seasonal integrity.
+
+CREATE VIEW `cyclistic-casestudy-2026.raw_bike_data.view_raw_joined_weather` AS
+SELECT 
+    trips.*,
+    weather.temp AS avg_temp,
+    weather.prcp AS precipitation,
+    weather.wdsp AS wind_speed
+FROM `cyclistic-casestudy-2026.raw_bike_data.combined_trips_2025_2026` AS trips
+LEFT JOIN `cyclistic-casestudy-2026.raw_bike_data.chicago_weather_raw` AS weather
+  ON DATE(trips.started_at) = 
+     -- Logic: If trip is in 2026, subtract 1 year to use 2025 weather as proxy
+     IF(DATE(trips.started_at) > '2025-12-31', 
+        DATE_SUB(DATE(trips.started_at), INTERVAL 1 YEAR), 
+        DATE(trips.started_at));
+
+
+-- =========================================================
+-- 3. DATA CLEANING & FEATURE ENGINEERING
 -- Creating the final cleaned dataset with derived fields such as:
 -- - ride_length (in minutes)
 -- - day_of_week
@@ -51,13 +73,13 @@ WHERE
 
 
 -- =========================================================
--- 3. FINAL AGGREGATIONS FOR TABLEAU
+-- 4. FINAL AGGREGATIONS FOR TABLEAU
 -- These queries were used to generate CSV exports for dashboard visuals
 -- =========================================================
 
 
 -- ---------------------------------------------------------
--- 3.1 Weekly Usage by Rider Type
+-- 4.1 Weekly Usage by Rider Type
 -- ---------------------------------------------------------
 
 SELECT 
@@ -82,7 +104,7 @@ ORDER BY
 
 
 -- ---------------------------------------------------------
--- 3.2 Hourly Ride Trends
+-- 4.2 Hourly Ride Trends
 -- ---------------------------------------------------------
 
 SELECT 
@@ -95,7 +117,7 @@ ORDER BY ride_hour ASC, member_casual;
 
 
 -- ---------------------------------------------------------
--- 3.3 Average Trip Duration by Rider Type
+-- 4.3 Average Trip Duration by Rider Type
 -- ---------------------------------------------------------
 
 SELECT 
@@ -108,7 +130,7 @@ GROUP BY member_casual;
 
 
 -- ---------------------------------------------------------
--- 3.4 Top Casual Rider Start Stations
+-- 4.4 Top Casual Rider Start Stations
 -- ---------------------------------------------------------
 
 SELECT 
